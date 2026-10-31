@@ -57,4 +57,236 @@ document.getElementById('loginForm').addEventListener('submit',e=>{e.preventDefa
 document.getElementById('checkAttendance').onclick=()=>{const id=document.getElementById('studentId').value.trim(),m=document.getElementById('attendanceMsg');m.style.display='block';m.textContent=id?'Demo preview for '+id+': connect the backend to show verified attendance.':'Please enter a demo student ID.'};
 document.addEventListener('keydown',e=>{if(e.key==='Escape')modal.classList.remove('show')});
 </script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(async function () {
+  const db = window.supabase.createClient(
+    "https://rgmmlcbajtbgsqlrvvhe.supabase.co",
+    "sb_publishable_A_kUD_W00I-uNp9ah6dlZg_7149QuKz"
+  );
+
+  const modal = document.getElementById("loginModal");
+  const box = modal.querySelector(".modalinner");
+
+  box.innerHTML = `
+    <button id="authClose" class="close">×</button>
+    <h2 style="color:#081a35">Student Portal</h2>
+
+    <div style="display:flex;gap:8px;margin:16px 0">
+      <button id="showLogin">Login</button>
+      <button id="showSignup">Student Signup</button>
+    </div>
+
+    <form id="portalLogin">
+      <div class="field">
+        <label>Email</label>
+        <input id="loginEmail" type="email" required autocomplete="email">
+      </div>
+      <div class="field" style="margin-top:12px">
+        <label>Password</label>
+        <input id="loginPassword" type="password" required autocomplete="current-password">
+      </div>
+      <button style="width:100%;margin-top:15px">Login</button>
+    </form>
+
+    <form id="portalSignup" hidden>
+      <div class="field">
+        <label>Full Name</label>
+        <input id="signupName" required maxlength="100" autocomplete="name">
+      </div>
+      <div class="field" style="margin-top:12px">
+        <label>Email</label>
+        <input id="signupEmail" type="email" required autocomplete="email">
+      </div>
+      <div class="field" style="margin-top:12px">
+        <label>Password (minimum 8 characters)</label>
+        <input id="signupPassword" type="password"
+               required minlength="8" autocomplete="new-password">
+      </div>
+      <button style="width:100%;margin-top:15px">Create Student Account</button>
+    </form>
+
+    <p id="portalMessage" role="status" style="overflow-wrap:anywhere"></p>
+
+    <div id="portalDashboard" hidden>
+      <hr>
+      <h3 id="portalWelcome"></h3>
+      <p id="portalRole"></p>
+      <div id="adminArea" hidden>
+        <h3>Registered Students</h3>
+        <button id="refreshStudents">Refresh List</button>
+        <div id="studentList" style="overflow:auto"></div>
+      </div>
+      <button id="portalLogout" style="margin-top:15px">Logout</button>
+    </div>
+  `;
+
+  const $ = id => document.getElementById(id);
+  const message = text => $("portalMessage").textContent = text;
+
+  $("authClose").onclick = () => modal.classList.remove("show");
+  $("showLogin").onclick = () => {
+    $("portalLogin").hidden = false;
+    $("portalSignup").hidden = true;
+    message("");
+  };
+  $("showSignup").onclick = () => {
+    $("portalLogin").hidden = true;
+    $("portalSignup").hidden = false;
+    message("");
+  };
+
+  async function loadDashboard() {
+    const { data: { user }, error: userError } = await db.auth.getUser();
+
+    if (userError || !user) {
+      $("portalDashboard").hidden = true;
+      $("portalLogin").hidden = false;
+      $("portalSignup").hidden = true;
+      message("Please log in to continue.");
+      return;
+    }
+
+    const { data: profile, error } = await db
+      .from("profiles")
+      .select("full_name,email,role")
+      .eq("id", user.id)
+      .single();
+
+    if (error || !profile) {
+      message("Profile load nahi hua. Please try again.");
+      return;
+    }
+
+    $("portalLogin").hidden = true;
+    $("portalSignup").hidden = true;
+    $("portalDashboard").hidden = false;
+    $("portalWelcome").textContent =
+      "Welcome, " + (profile.full_name || user.email);
+    $("portalRole").textContent = "Account: " + profile.role;
+    message("");
+
+    if (profile.role === "admin") {
+      $("adminArea").hidden = false;
+      await loadStudents();
+    } else {
+      $("adminArea").hidden = true;
+    }
+  }
+
+  async function loadStudents() {
+    const list = $("studentList");
+    list.replaceChildren();
+    list.textContent = "Loading students...";
+
+    const { data, error } = await db
+      .from("profiles")
+      .select("full_name,email,created_at")
+      .order("created_at", { ascending: false });
+
+    list.replaceChildren();
+
+    if (error) {
+      list.textContent = "Could not load students: " + error.message;
+      return;
+    }
+
+    if (!data || data.length === 0) {
+      list.textContent = "Abhi koi student registered nahi hai.";
+      return;
+    }
+
+    const table = document.createElement("table");
+    const header = table.insertRow();
+    ["Name", "Email", "Signup Date"].forEach(label => {
+      const th = document.createElement("th");
+      th.textContent = label;
+      header.appendChild(th);
+    });
+
+    data.forEach(student => {
+      const row = table.insertRow();
+      [
+        student.full_name || "—",
+        student.email || "—",
+        student.created_at
+          ? new Date(student.created_at).toLocaleDateString()
+          : "—"
+      ].forEach(value => {
+        const cell = row.insertCell();
+        cell.textContent = value;
+      });
+    });
+
+    list.appendChild(table);
+  }
+
+  $("portalSignup").addEventListener("submit", async event => {
+    event.preventDefault();
+    message("Creating account...");
+
+    const { data, error } = await db.auth.signUp({
+      email: $("signupEmail").value.trim(),
+      password: $("signupPassword").value,
+      options: {
+        data: { full_name: $("signupName").value.trim() }
+      }
+    });
+
+    if (error) {
+      message(error.message);
+      return;
+    }
+
+    if (data.session) {
+      await loadDashboard();
+    } else {
+      message("Signup successful! Email confirmation check karo, phir login karo.");
+    }
+  });
+
+  $("portalLogin").addEventListener("submit", async event => {
+    event.preventDefault();
+    message("Logging in...");
+
+    const { error } = await db.auth.signInWithPassword({
+      email: $("loginEmail").value.trim(),
+      password: $("loginPassword").value
+    });
+
+    if (error) {
+      message(error.message);
+      return;
+    }
+
+    await loadDashboard();
+  });
+
+  $("portalLogout").onclick = async () => {
+    const { error } = await db.auth.signOut();
+    if (error) {
+      message(error.message);
+      return;
+    }
+
+    $("portalDashboard").hidden = true;
+    $("portalLogin").hidden = false;
+    $("portalSignup").hidden = true;
+    message("Logged out successfully.");
+  };
+
+  $("refreshStudents").onclick = loadStudents;
+
+  document.getElementById("openLogin").onclick = async () => {
+    modal.classList.add("show");
+    await loadDashboard();
+  };
+
+  $("authClose").onclick = () => modal.classList.remove("show");
+
+  db.auth.onAuthStateChange(() => {
+    // Dashboard refresh is handled when the portal opens.
+  });
+})();
+</script>
 </body></html>
