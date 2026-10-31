@@ -105,7 +105,37 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')modal.classList.remo
       </div>
       <button style="width:100%;margin-top:15px">Login</button>
     </form>
+<form id="resetPasswordForm" hidden>
+  <div class="field">
+    <label for="newPassword">New Password</label>
+    <input
+      id="newPassword"
+      type="password"
+      minlength="6"
+      required
+      autocomplete="new-password"
+    >
+  </div>
 
+  <div class="field" style="margin-top:12px">
+    <label for="confirmPassword">Confirm New Password</label>
+    <input
+      id="confirmPassword"
+      type="password"
+      minlength="6"
+      required
+      autocomplete="new-password"
+    >
+  </div>
+
+  <button type="submit" style="width:100%;margin-top:15px">
+    Update Password
+  </button>
+
+  <button type="button" id="cancelPasswordReset" style="width:100%;margin-top:10px">
+    Back to Login
+  </button>
+</form>
     <form id="portalSignup" hidden>
       <div class="field">
         <label>Full Name</label>
@@ -286,6 +316,57 @@ $("forgotPassword").addEventListener("click", async () => {
   }
 
   message("Password reset email ke liye Gmail aur Spam folder check karo.");
+});
+  const resetForm = $("resetPasswordForm");
+
+db.auth.onAuthStateChange(async (event) => {
+  if (event === "PASSWORD_RECOVERY") {
+    $("portalLogin").hidden = true;
+    $("portalSignup").hidden = true;
+    $("portalDashboard").hidden = true;
+    resetForm.hidden = false;
+    modal.classList.add("show");
+    message("Apna naya password set karo.");
+  }
+});
+
+resetForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+
+  const password = $("newPassword").value;
+  const confirmPassword = $("confirmPassword").value;
+
+  if (password.length < 6) {
+    message("Password kam se kam 6 characters ka hona chahiye.");
+    return;
+  }
+
+  if (password !== confirmPassword) {
+    message("Dono passwords match nahi kar rahe.");
+    return;
+  }
+
+  message("Password update ho raha hai...");
+
+  const { error } = await db.auth.updateUser({
+    password: password
+  });
+
+  if (error) {
+    message("Error: " + error.message);
+    return;
+  }
+
+  resetForm.reset();
+  resetForm.hidden = true;
+  $("portalLogin").hidden = false;
+  message("Password successfully update ho gaya! Ab naye password se login karo.");
+});
+
+$("cancelPasswordReset").addEventListener("click", () => {
+  resetForm.hidden = true;
+  $("portalLogin").hidden = false;
+  message("");
 });
   $("portalLogin").addEventListener("submit", async event => {
     event.preventDefault();
