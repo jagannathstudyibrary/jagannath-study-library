@@ -82,8 +82,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')modal.classList.remo
         <label>Email</label>
         <input id="loginEmail" type="email" required autocomplete="email">
       </div>
-      <div class="field" style="margin-top:12px">
-        <label>Password</label>
+      
        <div style="margin-top:12px">
   <label for="loginPassword">Password</label>
   <input
@@ -94,9 +93,10 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')modal.classList.remo
     style="width:100%;box-sizing:border-box"
   >
 
-  <label style="display:flex;align-items:center;gap:6px;margin-top:8px">
-    <input id="showLoginPassword" type="checkbox">Show Password
-    </label>
+<label style="display:flex;align-items:center;gap:8px;margin-top:10px;white-space:nowrap">
+  <input id="showLoginPassword" type="checkbox" style="width:auto;margin:0">
+  <span>Show Password</span>
+</label>
 
   <button type="button" id="forgotPassword" style="margin-top:10px">
     Forgot Password?
