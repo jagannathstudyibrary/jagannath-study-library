@@ -84,7 +84,25 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')modal.classList.remo
       </div>
       <div class="field" style="margin-top:12px">
         <label>Password</label>
-        <input id="loginPassword" type="password" required autocomplete="current-password">
+       <div style="margin-top:12px">
+  <label for="loginPassword">Password</label>
+  <input
+    id="loginPassword"
+    type="password"
+    required
+    autocomplete="current-password"
+    style="width:100%;box-sizing:border-box"
+  >
+
+  <label style="display:flex;align-items:center;gap:6px;margin-top:8px">
+    <input id="showLoginPassword" type="checkbox">
+    Show Password
+  </label>
+
+  <button type="button" id="forgotPassword" style="margin-top:10px">
+    Forgot Password?
+  </button>
+</div>
       </div>
       <button style="width:100%;margin-top:15px">Login</button>
     </form>
@@ -244,7 +262,32 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')modal.classList.remo
       message("Signup successful! Email confirmation check karo, phir login karo.");
     }
   });
+$("showLoginPassword").addEventListener("change", event => {
+  $("loginPassword").type = event.target.checked ? "text" : "password";
+});
 
+$("forgotPassword").addEventListener("click", async () => {
+  const email = $("loginEmail").value.trim();
+
+  if (!email) {
+    message("Pehle apna email enter karo.");
+    $("loginEmail").focus();
+    return;
+  }
+
+  message("Password reset email bhej rahe hain...");
+
+  const { error } = await db.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin
+  });
+
+  if (error) {
+    message("Error: " + error.message);
+    return;
+  }
+
+  message("Password reset email ke liye Gmail aur Spam folder check karo.");
+});
   $("portalLogin").addEventListener("submit", async event => {
     event.preventDefault();
     message("Logging in...");
